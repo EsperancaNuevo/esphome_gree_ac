@@ -1,0 +1,150 @@
+---
+# examples/test_gree.yaml
+# Purpose: Minimal reproducible test configuration for Sinclair/Gree AC component v0.0.3
+# - Exercises BLE ATC external sensor selection & persistence (temp source + MAC)
+# - Works even if UART not yet connected (will show only ATC data when available)
+# - Safe defaults; you can OTA flash immediately
+#
+# Usage Instructions:
+# 1. Replace ssid/password & API/OTA keys with your own.
+# 2. Set the AC Temperature Source to "AC Own Sensor" until UART is wired.
+# 3. Enter your ATC sensor MAC (format AA:BB:CC:DD:EE:FF) then switch source to External ATC Sensor.
+# 4. Reboot -> values (MAC + temp source) should persist internally (no restore_value needed).
+# 5. After wiring UART to indoor unit, AC indoor temperature will appear.
+#
+# Notes:
+# - Logger level DEBUG for diagnostics; raise to INFO for quieter logs, VERBOSE + build flag for deep debug.
+# - Persistence is internal; DO NOT add restore_value/restore_mode to these entities unless you want YAML-level override.
+# - For invalid or empty MAC, component falls back to AC Own Sensor at boot or after timeout.
+# - ATC timeout: 15 minutes without BLE data triggers fallback.
+# - To enable extra verbose logging of packet internals: uncomment build_flags with -DSINCLAIR_AC_VERBOSE_LOG and set logger level VERBOSE.
+#
+# Hardware:
+# - ESP32 required for BLE (esp32dev board here).
+# - If you compile on ESP8266, BLE section will be ignored and External ATC won't function.
+#
+# Test Checklist After Flash:
+# [ ] Set MAC, switch to External ATC, observe ATC sensors populate.
+# [ ] Reboot, verify External ATC still selected.
+# [ ] Change to AC Own Sensor, reboot, persists.
+# [ ] Enter invalid MAC (e.g. ZZ:11) while External ATC selected -> fallback logged.
+# [ ] After connecting UART, AC Indoor Temp appears and climate current temp uses selected source.
+#
+# Optional: If you need active scanning (stronger BLE reception), set esp32_ble_tracker.scan_parameters.active: true.
+#
+# SECURITY: Replace secrets before deploying.
+
+esphome:
+  name: test_gree
+  friendly_name: Test Gree AC
+  # Uncomment for verbose deep debug
+  # platformio_options:
+  #   build_flags:
+  #     - -DSINCLAIR_AC_VERBOSE_LOG
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+wifi:
+  ssid: "REPLACE_ME"
+  password: "REPLACE_ME"
+  ap:
+    ssid: "TestGree Fallback"
+    password: "REPLACE_ME"
+
+api:
+  encryption:
+    key: "REPLACE_ME_API_KEY"
+  reboot_timeout: 0s
+
+ota:
+  - platform: esphome
+    password: "REPLACE_ME_OTA_PASSWORD"
+
+logger:
+  level: DEBUG
+  baud_rate: 0
+
+# BLE tracker required for ATC external sensor
+esp32_ble_tracker:
+  scan_parameters:
+    active: false   # set true if ATC packets unreliable
+    interval: 320ms
+    window: 30ms
+
+# UART to AC indoor unit (wire later if not yet connected)
+uart:
+  tx_pin: GPIO17
+  rx_pin: GPIO16
+  baud_rate: 4800
+  parity: EVEN
+
+external_components:
+  - source: github://10R1-hu/esphome_gree_ac
+    components: [sinclair_ac]
+    refresh: 0s
+
+climate:
+  - platform: sinclair_ac
+    id: sinclair_test_ac
+    name: "Test Gree Sinclair AC"
+
+    # Temperature source selection (persisted internally)
+    temp_source_select:
+      name: "AC Temperature Source"
+
+    # ATC MAC address input (persisted internally); must set mode: text
+    atc_mac_address_text:
+      name: "ATC MAC Address"
+      mode: text
+
+    # Sensors published by the component. AC indoor temp will appear after UART connection.
+    ac_indoor_temp_sensor:
+      name: "AC Indoor Temperature"
+      accuracy_decimals: 1
+      unit_of_measurement: "°C"
+      device_class: temperature
+      state_class: measurement
+
+    atc_room_temp_sensor:
+      name: "ATC Room Temperature"
+      accuracy_decimals: 2
+      unit_of_measurement: "°C"
+      device_class: temperature
+      state_class: measurement
+
+    atc_room_humidity_sensor:
+      name: "ATC Room Humidity"
+      accuracy_decimals: 1
+      unit_of_measurement: "%"
+      device_class: humidity
+      state_class: measurement
+
+    atc_battery_sensor:
+      name: "ATC Battery"
+      accuracy_decimals: 0
+      unit_of_measurement: "%"
+      device_class: battery
+      state_class: measurement
+
+    # Advanced options (persist internally)
+    vertical_swing_select:
+      name: "Vertical Swing"
+    horizontal_swing_select:
+      name: "Horizontal Swing"
+    display_select:
+      name: "Display Mode"
+    display_unit_select:
+      name: "Display Unit"
+    plasma_switch:
+      name: "Plasma"
+    beeper_switch:
+      name: "Beeper"
+    sleep_switch:
+      name: "Sleep"
+    xfan_switch:
+      name: "X-Fan"
+    save_switch:
+      name: "Save/8°C Heat"
