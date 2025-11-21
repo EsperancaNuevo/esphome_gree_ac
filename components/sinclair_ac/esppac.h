@@ -116,6 +116,9 @@ class SinclairAC : public Component, public uart::UARTDevice, public climate::Cl
         void set_sleep_switch(switch_::Switch *sleep_switch);
         void set_xfan_switch(switch_::Switch *plasma_switch);
         void set_save_switch(switch_::Switch *plasma_switch);
+        
+        void set_ignore_ready_switch(switch_::Switch *ignore_ready_switch);
+        void set_ignore_ready_check(bool v);
 
         void set_current_temperature_sensor(sensor::Sensor *current_temperature_sensor);
         void set_ac_indoor_temp_sensor(sensor::Sensor *ac_indoor_temp_sensor);
@@ -137,12 +140,7 @@ class SinclairAC : public Component, public uart::UARTDevice, public climate::Cl
         switch_::Switch *xfan_switch_            = nullptr; /* Switch for X-fan */
         switch_::Switch *save_switch_            = nullptr; /* Switch for save */
         
-        // Optional runtime switch to ignore Ready check
-        switch_::Switch *ignore_ready_switch_   = nullptr; /* Switch to allow controls when AC not Ready */
-        bool ignore_ready_check_ = false; /* If true, accept controls even when AC not Ready */
-
-        void set_ignore_ready_switch(switch_::Switch *ignore_ready_switch);
-        void set_ignore_ready_check(bool v);
+        
 
         sensor::Sensor *current_temperature_sensor_ = nullptr; /* If user wants to replace reported temperature by an external sensor readout */
         sensor::Sensor *ac_indoor_temp_sensor_   = nullptr; /* AC indoor temperature sensor for HA display */
