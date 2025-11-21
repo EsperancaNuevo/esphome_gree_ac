@@ -206,3 +206,28 @@ See the 4 module cable photos for wiring (for flashing and the wiring for connec
 After you've connected the module to your AC, it should pop under settings/integrations/esphome as a 'new device' and then you can add it to HA. If not, check if it started a WIFI access point, which it will do if it can't connect to your home wifi. You can then connect to that and configure it from there (via 192.168.4.1)
 
 **USE AT YOUR OWN RISK!**
+
+## Ignore Ready Check (new)
+
+If your ESP module is flashed and available in Home Assistant but the indoor AC unit is not yet connected (so the integration's `Ready` state is false), the component by default rejects control requests from Home Assistant. This can make the UI momentarily revert changes.
+
+This repository adds an optional, reversible behavior so you can accept HA control requests even when the AC is not Ready:
+
+- `ignore_ready_check: true` — set this under the `climate` configuration to allow the component to accept commands regardless of Ready state (defaults to `false`).
+- `ignore_ready_switch` — an optional runtime switch entity that lets you toggle the behavior from Home Assistant without reflashing.
+
+Example:
+
+```yaml
+climate:
+  - platform: sinclair_ac
+    name: "Bedroom AC"
+    ignore_ready_check: true
+    ignore_ready_switch:
+      name: "AC Ignore Ready Check"
+```
+
+Notes:
+- When `ignore_ready_check` is enabled the firmware will accept and apply commands to its internal state immediately, so the Home Assistant UI will show the requested setting. If the physical AC is still disconnected, the actual UART transmission cannot be confirmed until the unit becomes Ready.
+- If you later remove or comment out `ignore_ready_check` from your YAML and reflash, the behavior reverts to the default Ready-checking mode.
+- For guaranteed delivery (persist & resend when AC becomes Ready), consider enabling the "queue and NVS resend" behavior — contact the repository maintainer if you'd like that implemented.

@@ -132,8 +132,13 @@ void SinclairACCNT::loop()
 
 void SinclairACCNT::control(const climate::ClimateCall &call)
 {
-    if (this->state_ != ACState::Ready)
+    if (this->state_ != ACState::Ready && !this->ignore_ready_check_)
         return;
+    if (this->state_ != ACState::Ready && this->ignore_ready_check_)
+    {
+        ESP_LOGW(TAG, "AC not Ready — accepting control because ignore_ready_check is enabled");
+        // continue and accept control; this will set update_ and internal fields
+    }
 
     if (call.get_mode().has_value())
     {

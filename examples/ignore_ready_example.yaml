@@ -1,0 +1,44 @@
+---
+# Example: use ignore_ready_check and runtime switch
+# This example shows how to enable accepting HA control requests even when
+# the AC unit is not yet responding (not Ready). Useful for initial setup
+# or when the physical indoor unit is not connected yet. When the AC becomes
+# Ready the component will proceed with normal operation.
+
+esphome:
+  name: sinclair_ignore_ready
+
+esp32:
+  board: esp32dev
+
+wifi:
+  ssid: "REPLACE_ME"
+  password: "REPLACE_ME"
+
+logger:
+  level: DEBUG
+
+uart:
+  tx_pin: GPIO17
+  rx_pin: GPIO16
+  baud_rate: 4800
+  parity: EVEN
+
+external_components:
+  - source: github://10R1-hu/esphome_gree_ac
+    components: [sinclair_ac]
+
+climate:
+  - platform: sinclair_ac
+    name: "Bedroom AC"
+    # If true, accept control commands even when AC is not Ready
+    ignore_ready_check: true
+    # Optional runtime switch to toggle the behavior from Home Assistant UI
+    ignore_ready_switch:
+      name: "AC Ignore Ready Check"
+
+    # Optional: other switches/selects as needed
+    beeper_switch:
+      name: "Beeper"
+    plasma_switch:
+      name: "Plasma"

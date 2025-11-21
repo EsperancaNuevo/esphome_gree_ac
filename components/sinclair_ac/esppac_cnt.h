@@ -192,6 +192,8 @@ class SinclairACCNT : public SinclairAC {
         bool packet_resent_on_ready_ = false;
         bool pending_stored_packet_resend_ = false;
 
+        
+
         bool processUnitReport();
 
         void send_packet();

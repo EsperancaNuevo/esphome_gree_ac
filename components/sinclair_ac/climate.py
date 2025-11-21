@@ -29,6 +29,7 @@ CONF_VERTICAL_SWING_SELECT      = "vertical_swing_select"
 CONF_DISPLAY_SELECT             = "display_select"
 CONF_DISPLAY_UNIT_SELECT        = "display_unit_select"
 CONF_TEMP_SOURCE_SELECT         = "temp_source_select"
+CONF_IGNORE_READY_CHECK         = "ignore_ready_check"
 
 CONF_PLASMA_SWITCH              = "plasma_switch"
 CONF_BEEPER_SWITCH              = "beeper_switch"
@@ -38,6 +39,7 @@ CONF_SAVE_SWITCH                = "save_switch"
 
 CONF_CURRENT_TEMPERATURE_SENSOR = "current_temperature_sensor"
 CONF_AC_INDOOR_TEMP_SENSOR      = "ac_indoor_temp_sensor"
+CONF_IGNORE_READY_SWITCH        = "ignore_ready_switch"
 
 HORIZONTAL_SWING_OPTIONS = [
     "0 - OFF",
@@ -100,6 +102,8 @@ SCHEMA = climate.climate_schema(SinclairACCNT).extend(
         cv.Optional(CONF_XFAN_SWITCH): SWITCH_SCHEMA,
         cv.Optional(CONF_SAVE_SWITCH): SWITCH_SCHEMA,
         cv.Optional(CONF_AC_INDOOR_TEMP_SENSOR): sensor.sensor_schema(),
+        cv.Optional(CONF_IGNORE_READY_CHECK): cv.boolean,
+        cv.Optional(CONF_IGNORE_READY_SWITCH): SWITCH_SCHEMA,
     }
 ).extend(uart.UART_DEVICE_SCHEMA)
 
@@ -152,12 +156,16 @@ async def to_code(config):
         sens = await cg.get_variable(config[CONF_CURRENT_TEMPERATURE_SENSOR])
         cg.add(var.set_current_temperature_sensor(sens))
 
+    if CONF_IGNORE_READY_CHECK in config:
+        cg.add(var.set_ignore_ready_check(config[CONF_IGNORE_READY_CHECK]))
+
+
     if CONF_AC_INDOOR_TEMP_SENSOR in config:
         conf = config[CONF_AC_INDOOR_TEMP_SENSOR]
         sens = await sensor.new_sensor(conf)
         cg.add(var.set_ac_indoor_temp_sensor(sens))
         
-    for s in [CONF_PLASMA_SWITCH, CONF_BEEPER_SWITCH, CONF_SLEEP_SWITCH, CONF_XFAN_SWITCH, CONF_SAVE_SWITCH]:
+    for s in [CONF_PLASMA_SWITCH, CONF_BEEPER_SWITCH, CONF_SLEEP_SWITCH, CONF_XFAN_SWITCH, CONF_SAVE_SWITCH, CONF_IGNORE_READY_SWITCH]:
         if s in config:
             conf = config[s]
             a_switch = cg.new_Pvariable(conf[CONF_ID])
