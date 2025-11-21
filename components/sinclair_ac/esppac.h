@@ -139,6 +139,10 @@ class SinclairAC : public Component, public uart::UARTDevice, public climate::Cl
         switch_::Switch *sleep_switch_           = nullptr; /* Switch for sleep */
         switch_::Switch *xfan_switch_            = nullptr; /* Switch for X-fan */
         switch_::Switch *save_switch_            = nullptr; /* Switch for save */
+
+        // Runtime control: optional switch to allow accepting controls when AC not Ready
+        switch_::Switch *ignore_ready_switch_   = nullptr; /* Switch to allow controls when AC not Ready */
+        bool ignore_ready_check_ = false; /* If true, accept controls even when AC not Ready */
         
         
 
