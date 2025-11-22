@@ -120,6 +120,7 @@ class SinclairAC : public Component, public uart::UARTDevice, public climate::Cl
         void set_current_temperature_sensor(sensor::Sensor *current_temperature_sensor);
         void set_ac_indoor_temp_sensor(sensor::Sensor *ac_indoor_temp_sensor);
             // debug text sensors removed
+        void setup() override;
         void loop() override;
 
     protected:
