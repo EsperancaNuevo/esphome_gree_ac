@@ -129,7 +129,7 @@ climate:
 
 button:
   - platform: template
-    name: "Inject Sinclair Default Report"
+    name: "Send Sinclair Test SET"
     on_press:
       - lambda: |-
-          id(kisszoba_sinclair_ac).inject_default_report();
+          id(kisszoba_sinclair_ac).send_test_set();

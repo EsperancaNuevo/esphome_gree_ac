@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sinclair / Gree AC Decoder</title>
+  <style>
+    body { font-family: system-ui,Segoe UI,Roboto,Arial; padding: 18px; max-width: 980px; }
+    textarea { width: 100%; height: 160px; font-family: monospace; }
+    pre { background:#f6f8fa; padding:12px; overflow:auto }
+    .row { display:flex; gap:12px; margin:8px 0 }
+    button { padding:8px 12px }
+    .muted { color:#666; font-size:0.9em }
+  </style>
+</head>
+<body>
+  <h1>Sinclair / Gree AC Decoder</h1>
+  <p class="muted">Paste a hexdump line (TX/RX) or the full esphome UART log and click <strong>Decode</strong>.</p>
+
+  <textarea id="hexinput" placeholder="Paste hex bytes here (eg: 7E 7E 2F 01 ... )"></textarea>
+  <div class="row">
+    <button id="decode">Decode</button>
+    <button id="clear">Clear</button>
+    <input type="file" id="file" />
+  </div>
+
+  <h3>Frame builder (Generate SET packets)</h3>
+  <div style="border:1px solid #ddd;padding:12px;margin-bottom:12px;">
+    <div class="row">
+      <label style="min-width:120px">Power:</label>
+      <input type="checkbox" id="g_power" checked />
+      <label style="min-width:160px;margin-left:8px">Mode:</label>
+      <select id="g_mode">
+        <option value="0">AUTO</option>
+        <option value="1">COOL</option>
+        <option value="2">DRY</option>
+        <option value="3">FAN</option>
+        <option value="4">HEAT</option>
+      </select>
+      <label style="min-width:160px;margin-left:8px">Fan:</label>
+      <select id="g_fan">
+        <option value="0">0 - Auto</option>
+        <option value="1">1 - Quiet</option>
+        <option value="2">2 - Low</option>
+        <option value="3">3 - Medium-Low</option>
+        <option value="4">4 - Medium</option>
+        <option value="5">5 - Medium-High</option>
+        <option value="6">6 - High</option>
+        <option value="7">7 - Turbo</option>
+      </select>
+    </div>
+    <div class="row">
+      <label style="min-width:120px">Target temp:</label>
+      <select id="g_temp"></select>
+      <label style="min-width:160px;margin-left:8px">Temrec flag:</label>
+      <select id="g_temrec"><option value="0">TEMREC0</option><option value="1">TEMREC1</option></select>
+      <label style="min-width:120px;margin-left:8px">Display:</label>
+      <select id="g_display"><option value="0">OFF</option><option value="1">AUTO</option><option value="2">SET</option><option value="3">ACT</option><option value="4">OUT</option></select>
+    </div>
+    <div class="row">
+      <label style="min-width:120px">Horizontal swing:</label>
+      <select id="g_hswing">
+        <option value="0">OFF</option><option value="1">Swing - Full</option><option value="2">Constant - Left</option><option value="3">Constant - Mid-Left</option><option value="4">Constant - Middle</option><option value="5">Constant - Mid-Right</option><option value="6">Constant - Right</option>
+      </select>
+      <label style="min-width:140px;margin-left:8px">Vertical swing:</label>
+      <select id="g_vswing">
+        <option value="0">00 - OFF</option><option value="1">01 - Swing - Full</option><option value="2">02 - Swing - Down</option><option value="3">03 - Swing - Mid-Down</option><option value="4">04 - Swing - Middle</option><option value="5">05 - Swing - Mid-Up</option><option value="6">06 - Swing - Up</option><option value="7">07 - Constant - Down</option><option value="8">08 - Constant - Mid-Down</option><option value="9">09 - Constant - Middle</option><option value="10">10 - Constant - Mid-Up</option><option value="11">11 - Constant - Up</option>
+      </select>
+    </div>
+    <div class="row">
+      <label style="min-width:120px">Flags:</label>
+      <label><input type="checkbox" id="g_plasma" /> Plasma</label>
+      <label style="margin-left:8px"><input type="checkbox" id="g_sleep" /> Sleep</label>
+      <label style="margin-left:8px"><input type="checkbox" id="g_xfan" /> X-Fan</label>
+      <label style="margin-left:8px"><input type="checkbox" id="g_save" /> Save</label>
+      <label style="margin-left:8px"><input type="checkbox" id="g_beeper" /> Beeper</label>
+    </div>
+    <div class="row">
+      <button id="generate">Generate Frame</button>
+      <button id="insert_example">Insert Example TX Hex</button>
+      <button id="open_serial">Open Serial...</button>
+      <button id="close_serial" disabled>Close Serial</button>
+      <button id="copy_clip">Copy Hex</button>
+      <button id="download_bin">Download .bin</button>
+    </div>
+  </div>
+
+  <h3>Decoded output</h3>
+  <pre id="output">(decoded frames will appear here)</pre>
+
+  <script>
+  // Ported from scripts/sinclair_decoder.py
+  const Protocol = {
+    SYNC: 0x7E,
+    CMD_IN_UNIT_REPORT: 0x31,
+    CMD_OUT_PARAMS_SET: 0x01,
+    SET_PACKET_LEN: 45,
+    REPORT_PWR_BYTE: 4, REPORT_PWR_MASK: 0b10000000,
+    REPORT_MODE_BYTE: 4, REPORT_MODE_MASK: 0b01110000, REPORT_MODE_POS: 4,
+    REPORT_FAN_SPD1_BYTE: 18, REPORT_FAN_SPD1_MASK: 0b00001111, REPORT_FAN_SPD1_POS: 0,
+    REPORT_FAN_SPD2_BYTE: 4, REPORT_FAN_SPD2_MASK: 0b00000011, REPORT_FAN_SPD2_POS: 0,
+    REPORT_FAN_QUIET_BYTE: 16, REPORT_FAN_QUIET_MASK: 0b00001000,
+    REPORT_FAN_TURBO_BYTE: 6, REPORT_FAN_TURBO_MASK: 0b00000001,
+    REPORT_TEMP_SET_BYTE: 5, REPORT_TEMP_SET_MASK: 0b11110000, REPORT_TEMP_SET_POS: 4, REPORT_TEMP_SET_OFF: 16,
+    REPORT_TEMP_ACT_BYTE: 42, REPORT_TEMP_ACT_OFF: 16, REPORT_TEMP_ACT_DIV: 2.0,
+    REPORT_HSWING_BYTE: 8, REPORT_HSWING_MASK: 0b00000111, REPORT_HSWING_POS: 0,
+    REPORT_VSWING_BYTE: 8, REPORT_VSWING_MASK: 0b11110000, REPORT_VSWING_POS: 4,
+    REPORT_DISP_ON_BYTE: 6, REPORT_DISP_ON_MASK: 0b00000010,
+    REPORT_DISP_MODE_BYTE: 9, REPORT_DISP_MODE_MASK: 0b00110000, REPORT_DISP_MODE_POS: 4,
+    REPORT_DISP_F_BYTE: 7, TEMREC_MASK: 0b01000000, REPORT_DISP_F_MASK: 0b10000000,
+    REPORT_PLASMA1_BYTE: 6, REPORT_PLASMA1_MASK: 0b00000100,
+    REPORT_PLASMA2_BYTE: 0, REPORT_PLASMA2_MASK: 0b00000100,
+    REPORT_SLEEP_BYTE: 4, REPORT_SLEEP_MASK: 0b00001000,
+    REPORT_XFAN_BYTE: 6, REPORT_XFAN_MASK: 0b00001000,
+    REPORT_SAVE_BYTE: 11, REPORT_SAVE_MASK: 0b01000000,
+    REPORT_BEEPER_BYTE: 40, REPORT_BEEPER_MASK: 0b00000001
+  };
+
+  const TEMREC0 = [15.5555555555556,16.6666666666667,17.7777777778,18.8888888889,20,20.5555555556,21.6666666667,22.7777777778,23.8888888889,25,25.5555555556,26.6666666666667,27.7777777778,28.8888888889,30,30.5555555556];
+  const TEMREC1 = [16.1111111111111,17.2222222222222,18.3333333333333,19.4444444444444,0,21.1111111111,22.2222222222222,23.3333333333,24.4444444444,0,26.1111111111111,27.2222222222222,28.3333333333,29.4444444444,0,31.1111111111111];
+
+  function parseHexBytes(s) {
+    s = s.replace(/[.,]/g, ' ');
+    const parts = s.match(/[0-9A-Fa-f]{2}/g);
+    return parts ? parts.map(p => parseInt(p, 16)) : [];
+  }
+
+  function extractFramesFromBytes(bytes) {
+    const frames = [];
+    for (let i=0;i<bytes.length-1;i++){
+      if (bytes[i] === Protocol.SYNC && bytes[i+1] === Protocol.SYNC) {
+        if (i+2 < bytes.length) {
+          const length = bytes[i+2];
+          const total = 2 + length;
+          if (i + total <= bytes.length) frames.push(bytes.slice(i, i+total));
+        }
+      }
+    }
+    return frames;
+  }
+
+  function parseFrame(rawBytes) {
+    if (rawBytes.length < 5) throw 'Frame too short';
+    if (rawBytes[0] !== Protocol.SYNC || rawBytes[1] !== Protocol.SYNC) throw 'No sync';
+    const length = rawBytes[2];
+    const cmd = rawBytes[3];
+    const payload_len = (cmd === Protocol.CMD_OUT_PARAMS_SET) ? Protocol.SET_PACKET_LEN : (length - 2);
+    const payload = rawBytes.slice(4, 4+payload_len);
+    const checksum = rawBytes[4+payload_len];
+    const s = (rawBytes[2] + rawBytes[3] + payload.reduce((a,b)=>a+b,0)) & 0xFF;
+    const checksum_ok = (s === checksum);
+    return { length, cmd, payload, checksum, checksum_ok };
+  }
+
+  function decodePayload(p, direction='TX'){
+    const out = {};
+    const mode_val = (p[Protocol.REPORT_MODE_BYTE] & Protocol.REPORT_MODE_MASK) >> Protocol.REPORT_MODE_POS;
+    const power = (p[Protocol.REPORT_PWR_BYTE] & Protocol.REPORT_PWR_MASK) !== 0;
+    const modes = {0:'AUTO',1:'COOL',2:'DRY',3:'FAN',4:'HEAT'};
+    out.mode = modes[mode_val] || `UNKNOWN(${mode_val})`;
+    out.power_bit_raw = power?1:0;
+
+    const temset = (p[Protocol.REPORT_TEMP_SET_BYTE] & Protocol.REPORT_TEMP_SET_MASK) >> Protocol.REPORT_TEMP_SET_POS;
+    const temrec = (p[Protocol.REPORT_DISP_F_BYTE] & Protocol.TEMREC_MASK) !== 0;
+    out.temset_index = temset; out.temrec_flag = temrec?1:0;
+    out.target_temperature = (temset<0||temset>15)?null:(temrec?TEMREC1[temset]:TEMREC0[temset]);
+
+    const fan1 = (p[Protocol.REPORT_FAN_SPD1_BYTE] & Protocol.REPORT_FAN_SPD1_MASK) >> Protocol.REPORT_FAN_SPD1_POS;
+    const fan2 = (p[Protocol.REPORT_FAN_SPD2_BYTE] & Protocol.REPORT_FAN_SPD2_MASK) >> Protocol.REPORT_FAN_SPD2_POS;
+    const fan_quiet = (p[Protocol.REPORT_FAN_QUIET_BYTE] & Protocol.REPORT_FAN_QUIET_MASK) !== 0;
+    const fan_turbo = (p[Protocol.REPORT_FAN_TURBO_BYTE] & Protocol.REPORT_FAN_TURBO_MASK) !== 0;
+    out.fan_spd1=fan1; out.fan_spd2=fan2; out.fan_quiet=fan_quiet?1:0; out.fan_turbo=fan_turbo?1:0;
+
+    const vmode = (p[Protocol.REPORT_VSWING_BYTE] & Protocol.REPORT_VSWING_MASK) >> Protocol.REPORT_VSWING_POS;
+    const hmode = (p[Protocol.REPORT_HSWING_BYTE] & Protocol.REPORT_HSWING_MASK) >> Protocol.REPORT_HSWING_POS;
+    out.vertical_swing_index = vmode; out.horizontal_swing_index = hmode;
+
+    const disp_mode = (p[Protocol.REPORT_DISP_MODE_BYTE] & Protocol.REPORT_DISP_MODE_MASK) >> Protocol.REPORT_DISP_MODE_POS;
+    const disp_on = (p[Protocol.REPORT_DISP_ON_BYTE] & Protocol.REPORT_DISP_ON_MASK) !== 0;
+    const disp_f = (p[Protocol.REPORT_DISP_F_BYTE] & Protocol.REPORT_DISP_F_MASK) !== 0;
+    const disp_modes = {0:'AUTO',1:'SET',2:'ACT',3:'OUT'};
+    out.display_mode = disp_modes[disp_mode] || `UNK(${disp_mode})`;
+    out.display_on = disp_on?1:0; out.display_unit_F = disp_f?1:0;
+
+    out.plasma = ((p[Protocol.REPORT_PLASMA1_BYTE] & Protocol.REPORT_PLASMA1_MASK)!==0 || (p[Protocol.REPORT_PLASMA2_BYTE] & Protocol.REPORT_PLASMA2_MASK)!==0)?1:0;
+    out.sleep = ((p[Protocol.REPORT_SLEEP_BYTE] & Protocol.REPORT_SLEEP_MASK)!==0)?1:0;
+    out.xfan = ((p[Protocol.REPORT_XFAN_BYTE] & Protocol.REPORT_XFAN_MASK)!==0)?1:0;
+    out.save = ((p[Protocol.REPORT_SAVE_BYTE] & Protocol.REPORT_SAVE_MASK)!==0)?1:0;
+
+    const beeper_raw = (p[Protocol.REPORT_BEEPER_BYTE] & Protocol.REPORT_BEEPER_MASK) !== 0;
+    out.beeper_raw = beeper_raw?1:0;
+    out.beeper_effective = (direction.toUpperCase()==='TX') ? 'OFF if raw=1 (firmware oddness)' : 'ON if raw=1';
+
+    const act_temp_raw = p[Protocol.REPORT_TEMP_ACT_BYTE];
+    out.ac_indoor_temperature = (act_temp_raw - Protocol.REPORT_TEMP_ACT_OFF) / 1.0;
+
+    return out;
+  }
+
+  function formatFrameInfo(info){
+    const lines = [];
+    lines.push(`CMD=0x${info.cmd.toString(16).padStart(2,'0').toUpperCase()}, LEN=${info.length}, checksum_ok=${info.checksum_ok}`);
+    lines.push('PAYLOAD: ' + info.payload.map(b=>b.toString(16).padStart(2,'0').toUpperCase()).join(' '));
+    const decoded = decodePayload(info.payload, info.cmd === Protocol.CMD_OUT_PARAMS_SET ? 'TX' : 'RX');
+    lines.push('Decoded:');
+    for (const k of Object.keys(decoded)) lines.push(`  ${k}: ${decoded[k]}`);
+    return lines.join('\n');
+  }
+
+  document.getElementById('decode').addEventListener('click', ()=>{
+    const raw = document.getElementById('hexinput').value;
+    const bytes = parseHexBytes(raw);
+    const out = document.getElementById('output');
+    if (!bytes.length) { out.textContent = 'No hex bytes found'; return; }
+    const frames = extractFramesFromBytes(bytes);
+    if (frames.length===0){
+      try {
+        const info = parseFrame(bytes);
+        out.textContent = formatFrameInfo(info);
+      } catch(e){ out.textContent = 'Failed to parse frame: '+e; }
+      return;
+    }
+    const parts = [];
+    for (const f of frames){
+      try { const info = parseFrame(f); parts.push(formatFrameInfo(info)); } catch(e){ parts.push('Failed to parse frame: '+e); }
+    }
+    out.textContent = parts.join('\n---\n');
+  });
+
+  document.getElementById('clear').addEventListener('click', ()=>{ document.getElementById('hexinput').value=''; document.getElementById('output').textContent=''; });
+
+  document.getElementById('file').addEventListener('change', (ev)=>{
+    const f = ev.target.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = (e)=>{ document.getElementById('hexinput').value = e.target.result; };
+    r.readAsText(f);
+  });
+
+  // Populate temperature options using TEMREC arrays
+  (function populateTemps(){
+    const temps = new Set();
+    TEMREC0.forEach(t=>temps.add(t));
+    TEMREC1.forEach(t=>{ if (t!==0) temps.add(t); });
+    const sorted = Array.from(temps).sort((a,b)=>a-b);
+    const sel = document.getElementById('g_temp');
+    sorted.forEach(t=>{ const o = document.createElement('option'); o.value = t; o.textContent = t.toFixed(1); sel.appendChild(o); });
+  })();
+
+  function find_temset_and_flag(target){
+    // Try TEMREC0 and TEMREC1 for exact match, fallback to nearest
+    let best = {idx:0,flag:0,delta:1e9};
+    TEMREC0.forEach((v,i)=>{ const d=Math.abs(v-target); if (d<best.delta){ best={idx:i,flag:0,delta:d}; }});
+    TEMREC1.forEach((v,i)=>{ if (v===0) return; const d=Math.abs(v-target); if (d<best.delta){ best={idx:i,flag:1,delta:d}; }});
+    return best; // idx: temset index (0-15), flag: 0->TEMREC0,1->TEMREC1
+  }
+
+  function toHex(arr){ return arr.map(b=>b.toString(16).padStart(2,'0').toUpperCase()).join(' '); }
+
+  document.getElementById('insert_example').addEventListener('click', ()=>{
+    // Insert a common example TX frame into the textarea for editing
+    const ex = '7E 7E 2F 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00';
+    document.getElementById('hexinput').value = ex;
+  });
+
+  document.getElementById('generate').addEventListener('click', ()=>{
+    // Build a 45-byte payload according to selected options
+    const payload = new Array(45).fill(0);
+    const power = document.getElementById('g_power').checked;
+    const mode = parseInt(document.getElementById('g_mode').value,10);
+    const fan = parseInt(document.getElementById('g_fan').value,10);
+    const tempVal = parseFloat(document.getElementById('g_temp').value);
+    const tem = find_temset_and_flag(tempVal);
+    const temrec_flag = tem.flag;
+    const temset_idx = tem.idx;
+    const display = parseInt(document.getElementById('g_display').value,10);
+    const hswing = parseInt(document.getElementById('g_hswing').value,10);
+    const vswing = parseInt(document.getElementById('g_vswing').value,10);
+    const plasma = document.getElementById('g_plasma').checked;
+    const sleep = document.getElementById('g_sleep').checked;
+    const xfan = document.getElementById('g_xfan').checked;
+    const save = document.getElementById('g_save').checked;
+    const beeper = document.getElementById('g_beeper').checked;
+
+    // Byte 4: power(0x80), mode (bits 4-6), fan2 (bits 0-1), sleep (bit3)
+    let b4 = 0;
+    if (power) b4 |= 0x80;
+    b4 |= (mode << 4) & 0x70;
+    b4 |= (fan & 0x03);
+    if (sleep) b4 |= 0x08;
+    payload[4] = b4;
+
+    // Byte 5: target temperature index in high nibble
+    payload[5] = (temset_idx << 4) & 0xF0;
+
+    // Byte 6: turbo (bit0), display_on (bit1), plasma1 (bit2)
+    let b6 = 0;
+    if (fan === 7) b6 |= 0x01; // turbo
+    if (display !== 0) b6 |= 0x02; // display on
+    if (plasma) b6 |= 0x04;
+    payload[6] = b6;
+
+    // Byte 7: TEMREC / F flags
+    let b7 = 0;
+    if (temrec_flag) b7 |= 0x40; // TEMREC bit
+    payload[7] = b7;
+
+    // Byte 8: vertical (upper nibble) and horizontal (lower bits)
+    let b8 = ((vswing << 4) & 0xF0) | (hswing & 0x07);
+    payload[8] = b8;
+
+    // Byte 11: save (bit6)
+    if (save) payload[11] |= 0x40;
+
+    // Byte 16: fan quiet (bit3)
+    if (fan === 1) payload[16] |= 0x08;
+
+    // Byte 18: fan spd1 (low nibble)
+    payload[18] = (fan & 0x0F);
+
+    // Byte 40: beeper flag
+    if (beeper) payload[40] |= 0x01;
+
+    // Byte 0: sometimes plasma2 bit exists
+    if (plasma) payload[0] |= 0x04;
+
+    // Build frame: sync, sync, length, cmd, payload(45), checksum
+    const cmd = Protocol.CMD_OUT_PARAMS_SET;
+    const length = 2 + payload.length; // cmd + payload + checksum -> length field
+    const frame = [Protocol.SYNC, Protocol.SYNC, length, cmd].concat(payload);
+    const checksum = (length + cmd + payload.reduce((a,b)=>a+b,0)) & 0xFF;
+    frame.push(checksum);
+
+    // Show generated hex and decoded info
+    const out = document.getElementById('output');
+    const frameHex = toHex(frame);
+    out.textContent = 'Generated frame:\n' + frameHex + '\n\nPayload:\n' + toHex(payload) + '\n\nDecoded (from generator):\n' + JSON.stringify({mode:mode,power:power?1:0,fan:fan,target_temp:tempVal,temset:temset_idx,temrec:temrec_flag,hswing:hswing,vswing:vswing,plasma:plasma?1:0,sleep:sleep?1:0,xfan:xfan?1:0,save:save?1:0,beeper:beeper?1:0},null,2);
+
+    // Automatically attempt to send the frame (Web Serial API) or copy to clipboard as fallback
+    sendFrame(frame).then(result => {
+      out.textContent += '\n\nSend result: ' + result;
+    }).catch(err => {
+      out.textContent += '\n\nSend failed: ' + err;
+    });
+  });
+
+  // Clipboard / download / serial helpers
+  let serialPort = null;
+  let serialWriter = null;
+
+  async function openSerial() {
+    if (!('serial' in navigator)) throw 'Web Serial API not supported in this browser';
+    serialPort = await navigator.serial.requestPort();
+    await serialPort.open({ baudRate: 9600 });
+    document.getElementById('open_serial').disabled = true;
+    document.getElementById('close_serial').disabled = false;
+    return 'serial opened';
+  }
+
+  async function closeSerial() {
+    if (!serialPort) return 'no port';
+    try { await serialPort.close(); } catch(e){}
+    serialPort = null;
+    document.getElementById('open_serial').disabled = false;
+    document.getElementById('close_serial').disabled = true;
+    return 'serial closed';
+  }
+
+  async function sendToSerialBytes(bytes) {
+    if (!serialPort) throw 'Serial port not open';
+    const writer = serialPort.writable.getWriter();
+    await writer.write(new Uint8Array(bytes));
+    writer.releaseLock();
+    return 'sent to serial';
+  }
+
+  async function copyToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+      return 'copied to clipboard';
+    }
+    return 'clipboard not available';
+  }
+
+  function downloadBin(bytes, filename='sinclair_frame.bin'){
+    const blob = new Blob([new Uint8Array(bytes)], {type:'application/octet-stream'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    return 'downloaded';
+  }
+
+  async function sendFrame(frameBytes) {
+    // Try serial if available and opened, otherwise copy hex to clipboard
+    try {
+      if (serialPort) {
+        await sendToSerialBytes(frameBytes);
+        return 'sent via serial';
+      }
+    } catch(e) {
+      console.error('serial send failed', e);
+    }
+    // fallback: copy hex to clipboard
+    const hex = toHex(frameBytes);
+    try { await copyToClipboard(hex); return 'copied hex to clipboard (fallback)'; } catch(e){ throw e; }
+  }
+
+  document.getElementById('open_serial').addEventListener('click', ()=>{ openSerial().then(r=>{ document.getElementById('output').textContent += '\n' + r; }).catch(e=>{ document.getElementById('output').textContent += '\nopen serial error: '+e; }); });
+  document.getElementById('close_serial').addEventListener('click', ()=>{ closeSerial().then(r=>{ document.getElementById('output').textContent += '\n' + r; }).catch(e=>{ document.getElementById('output').textContent += '\nclose serial error: '+e; }); });
+  document.getElementById('copy_clip').addEventListener('click', ()=>{ const txt = document.getElementById('output').textContent; copyToClipboard(txt).then(r=>{ document.getElementById('output').textContent += '\n'+r; }).catch(e=>{ document.getElementById('output').textContent += '\ncopy error: '+e; }); });
+  document.getElementById('download_bin').addEventListener('click', ()=>{
+    const out = document.getElementById('output').textContent;
+    // try parse hex from 'Generated frame' line
+    const m = out.match(/Generated frame:\n([0-9A-F \n]+)/i);
+    if (!m) { document.getElementById('output').textContent += '\nNo generated frame found'; return; }
+    const hex = m[1].replace(/\s+/g,' ').trim();
+    const parts = hex.match(/[0-9A-Fa-f]{2}/g) || [];
+    const bytes = parts.map(p=>parseInt(p,16));
+    downloadBin(bytes);
+  });
+  </script>
+</body>
+</html>

@@ -1347,6 +1347,29 @@ void SinclairACCNT::inject_default_report()
     ESP_LOGI(TAG, "Injected default simulated unit report (power OFF, display OFF, °C, swings OFF, beeper OFF, plasma ON)");
 }
 
+/*
+ * Send a predefined test SET packet (used by example buttons in repo)
+ * This will write the exact frame bytes created in the web generator example
+ */
+void SinclairACCNT::send_test_set()
+{
+    std::vector<uint8_t> frame = {
+        0x7E,0x7E,0x2F,0x01,
+        0x00,0x00,0x00,0x00,0xC0,0x70,0x02,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x04,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x66
+    };
+
+    // Update last sent timestamp and mark waiting for response
+    this->last_packet_sent_ = millis();
+    this->wait_response_ = true;
+
+    // Send directly over UART
+    write_array(frame);
+    log_packet(frame, true);
+
+    ESP_LOGI(TAG, "send_test_set(): Test SET packet sent (length=%d)", (int)frame.size());
+}
+
 // (ignore_ready feature removed)
 
 }  // namespace CNT

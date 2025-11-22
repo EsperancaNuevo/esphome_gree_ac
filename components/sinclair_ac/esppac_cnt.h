@@ -175,6 +175,8 @@ class SinclairACCNT : public SinclairAC {
         void loop() override;
 
         void force_resend_last_packet();
+        // Send a predefined test SET packet (used by example button)
+        void send_test_set();
         // For testing: inject the last saved SET payload as if it was received from the AC
         void inject_saved_packet();
         // Inject a constructed unit-report that shows:
