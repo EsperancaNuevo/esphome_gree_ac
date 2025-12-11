@@ -158,13 +158,16 @@ void SinclairACCNT::control(const climate::ClimateCall &call)
         }
     }
 
-    if (call.get_custom_fan_mode().has_value())
-    {
-        ESP_LOGV(TAG, "Requested fan mode change");
-        reqmodechange = true;
-        this->update_ = ACUpdate::UpdateStart;
-        this->custom_fan_mode = *call.get_custom_fan_mode();
+    if (call.has_custom_fan_mode()) {
+        const char* fan_mode = call.get_custom_fan_mode();
+        if (fan_mode != nullptr) {
+            ESP_LOGV(TAG, "Requested fan mode change");
+            reqmodechange = true;
+            this->update_ = ACUpdate::UpdateStart;
+            this->custom_fan_mode_ = fan_mode;  // Сохранить режим в поле класса
+        }
     }
+
 
     if (call.get_swing_mode().has_value())
     {
