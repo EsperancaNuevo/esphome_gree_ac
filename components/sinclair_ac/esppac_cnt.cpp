@@ -293,6 +293,10 @@ void SinclairACCNT::send_packet()
                     /* HEAT_COOL in internal mode - treat as AUTO */
                     mode = protocol::REPORT_MODE_AUTO;
                     break;
+                case climate::CLIMATE_MODE_OFF:
+                    /* OFF in internal mode - default to AUTO */
+                    mode = protocol::REPORT_MODE_AUTO;
+                    break;
             }
             power = false;
             break;
