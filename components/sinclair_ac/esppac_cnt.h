@@ -194,6 +194,8 @@ class SinclairACCNT : public SinclairAC {
         std::string display_mode_internal_;
         bool display_power_internal_;
 
+        std::string custom_fan_mode_;  // Текущий режим вентилятора для обновления
+
         // Power-outage safe: last applied SET payload
         LastPacketPayload last_packet_payload_;
         bool has_last_packet_ = false;
