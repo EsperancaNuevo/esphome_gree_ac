@@ -264,6 +264,11 @@ void SinclairACCNT::send_packet()
             mode = protocol::REPORT_MODE_HEAT;
             power = true;
             break;
+        case climate::CLIMATE_MODE_HEAT_COOL:
+            /* HEAT_COOL mode - treat as AUTO */
+            mode = protocol::REPORT_MODE_AUTO;
+            power = true;
+            break;
         default:
         case climate::CLIMATE_MODE_OFF:
             /* In case of MODE_OFF we will not alter the last mode setting recieved from AC, see determine_mode() */
@@ -283,6 +288,10 @@ void SinclairACCNT::send_packet()
                     break;
                 case climate::CLIMATE_MODE_HEAT:
                     mode = protocol::REPORT_MODE_HEAT;
+                    break;
+                case climate::CLIMATE_MODE_HEAT_COOL:
+                    /* HEAT_COOL in internal mode - treat as AUTO */
+                    mode = protocol::REPORT_MODE_AUTO;
                     break;
             }
             power = false;
