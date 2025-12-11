@@ -312,14 +312,14 @@ void SinclairACCNT::send_packet()
     bool    fanQuiet  = false;
     bool    fanTurbo  = false;
 
-    if (this->custom_fan_mode == fan_modes::FAN_AUTO)
+    if (this->custom_fan_mode_ == fan_modes::FAN_AUTO)
     {
         fanSpeed1 = 0;
         fanSpeed2 = 0;
         fanQuiet  = false;
         fanTurbo  = false;
     }
-    else if (this->custom_fan_mode == fan_modes::FAN_QUIET)
+    else if (this->custom_fan_mode_ == fan_modes::FAN_QUIET)
     {
         fanSpeed1 = 1;
         fanSpeed2 = 1;
@@ -327,7 +327,7 @@ void SinclairACCNT::send_packet()
         fanTurbo  = false;
         packet[protocol::REPORT_FAN_SPD2_BYTE] |= 1;
     }
-    else if (this->custom_fan_mode == fan_modes::FAN_LOW)
+    else if (this->custom_fan_mode_ == fan_modes::FAN_LOW)
     {
         fanSpeed1 = 1;
         fanSpeed2 = 1;
@@ -335,7 +335,7 @@ void SinclairACCNT::send_packet()
         fanTurbo  = false;
         packet[protocol::REPORT_FAN_SPD2_BYTE] |= 1;
     }
-    else if (this->custom_fan_mode == fan_modes::FAN_MEDL)
+    else if (this->custom_fan_mode_ == fan_modes::FAN_MEDL)
     {
         fanSpeed1 = 2;
         fanSpeed2 = 2;
@@ -343,7 +343,7 @@ void SinclairACCNT::send_packet()
         fanTurbo  = false;
         packet[protocol::REPORT_FAN_SPD2_BYTE] |= 2;
     }
-    else if (this->custom_fan_mode == fan_modes::FAN_MED)
+    else if (this->custom_fan_mode_ == fan_modes::FAN_MED)
     {
         fanSpeed1 = 3;
         fanSpeed2 = 2;
@@ -351,7 +351,7 @@ void SinclairACCNT::send_packet()
         fanTurbo  = false;
         packet[protocol::REPORT_FAN_SPD2_BYTE] |= 2;
     }
-    else if (this->custom_fan_mode == fan_modes::FAN_MEDH)
+    else if (this->custom_fan_mode_ == fan_modes::FAN_MEDH)
     {
         fanSpeed1 = 4;
         fanSpeed2 = 3;
@@ -359,7 +359,7 @@ void SinclairACCNT::send_packet()
         fanTurbo  = false;
         packet[protocol::REPORT_FAN_SPD2_BYTE] |= 3;
     }
-    else if (this->custom_fan_mode == fan_modes::FAN_HIGH)
+    else if (this->custom_fan_mode_ == fan_modes::FAN_HIGH)
     {
         fanSpeed1 = 5;
         fanSpeed2 = 3;
@@ -367,7 +367,7 @@ void SinclairACCNT::send_packet()
         fanTurbo  = false;
         packet[protocol::REPORT_FAN_SPD2_BYTE] |= 3;
     }
-    else if (this->custom_fan_mode == fan_modes::FAN_TURBO)
+    else if (this->custom_fan_mode_ == fan_modes::FAN_TURBO)
     {
         fanSpeed1 = 5;
         fanSpeed2 = 3;
