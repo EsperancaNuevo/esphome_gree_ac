@@ -18,6 +18,17 @@ static const std::string DISPLAY_OPTIONS[] = {
 };
 static const uint8_t DISPLAY_OPTIONS_COUNT = 5;
 
+static const char* const CUSTOM_FAN_MODES[] = {
+    "FAN_AUTO",
+    "FAN_QUIET",
+    "FAN_LOW",
+    "FAN_MEDL",
+    "FAN_MED",
+    "FAN_MEDH",
+    "FAN_HIGH",
+    "FAN_TURBO"
+};
+
 static const std::string DISPLAY_UNIT_OPTIONS[] = {
     display_unit_options::DEGC,  // 0
     display_unit_options::DEGF   // 1
@@ -134,16 +145,7 @@ climate::ClimateTraits SinclairAC::traits()
     traits.set_supported_modes({climate::CLIMATE_MODE_OFF, climate::CLIMATE_MODE_AUTO, climate::CLIMATE_MODE_COOL,
                                 climate::CLIMATE_MODE_HEAT, climate::CLIMATE_MODE_FAN_ONLY, climate::CLIMATE_MODE_DRY});
 
-    traits.set_supported_custom_fan_modes({
-        fan_modes::FAN_AUTO,
-        fan_modes::FAN_QUIET,
-        fan_modes::FAN_LOW,
-        fan_modes::FAN_MEDL,
-        fan_modes::FAN_MED,
-        fan_modes::FAN_MEDH,
-        fan_modes::FAN_HIGH,
-        fan_modes::FAN_TURBO,
-    });
+    traits.set_supported_custom_fan_modes(CUSTOM_FAN_MODES);
 
 
     traits.set_supported_swing_modes({climate::CLIMATE_SWING_OFF, climate::CLIMATE_SWING_BOTH,
