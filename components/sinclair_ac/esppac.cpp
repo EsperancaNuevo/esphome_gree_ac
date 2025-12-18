@@ -200,6 +200,12 @@ void SinclairAC::read_data()
         uint8_t c;
         this->read_byte(&c);  // Store in receive buffer
 
+        // <<< ДОБАВИТЬ: сырое логирование каждого байта >>>
+        ESP_LOGVV("sinclair_uart_raw", "RX byte: 0x%02X (state=%d, size=%u)",
+                  c, this->serialProcess_.state,
+                  (unsigned)this->serialProcess_.data.size());
+        // <<< КОНЕЦ ВСТАВКИ >>>
+        
         if (this->serialProcess_.state == STATE_RESTART)
         {
             this->serialProcess_.data.clear();
