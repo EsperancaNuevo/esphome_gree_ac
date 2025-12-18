@@ -7,6 +7,7 @@ namespace sinclair_ac {
 namespace CNT {
 
 static const char *const TAG = "sinclair_ac.serial";
+bool link_up_ = false;
 
 void SinclairACCNT::setup()
 {
@@ -720,6 +721,11 @@ void SinclairACCNT::handle_packet()
 {
     if (this->serialProcess_.data[3] == protocol::CMD_IN_UNIT_REPORT)
     {
+        // как только дошли сюда, пакет валиден и от AC
+        if (!link_up_) {
+            link_up_ = true;
+            ESP_LOGI(TAG, "Link with Gree AC established");
+        }
         bool newdata = false;
         
         /* here we will remove unnecessary elements - header and checksum */
