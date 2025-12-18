@@ -638,6 +638,13 @@ void SinclairACCNT::send_packet()
     this->last_packet_sent_ = millis();  /* Save the time when we sent the last packet */
     
     this->wait_response_ = true;
+
+    // СЫРОЙ ЛОГ ПЕРЕДАЧИ
+    ESP_LOGVV("sinclair_uart_raw", "TX frame len=%u", (unsigned)packet.size());
+    for (size_t i = 0; i < packet.size(); i++) {
+        ESP_LOGVV("sinclair_uart_raw", "TX[%u]=0x%02X", (unsigned)i, packet[i]);
+    }
+    
     write_array(packet);                 /* Sent the packet by UART */
     log_packet(packet, true);            /* Log uart for debug purposes */
    
