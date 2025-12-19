@@ -78,6 +78,7 @@ void SinclairACCNT::loop()
 
         if (!verify_packet())  /* Verify length, header, counter and checksum */
         {
+            ESP_LOGD(TAG, "PACKET DROPPED");
             return;
         }
 
@@ -133,9 +134,12 @@ void SinclairACCNT::loop()
 
 void SinclairACCNT::control(const climate::ClimateCall &call)
 {
+    ESP_LOGD(TAG, "CONTROL CALLED! state_=%d", (int)this->state_);
     if (this->state_ != ACState::Ready)
+    {
+        ESP_LOGD(TAG, "CONTROL BLOCKED! state != Ready");
         return;
-
+    }
     if (call.get_mode().has_value())
     {
         ESP_LOGV(TAG, "Requested mode change");
@@ -216,9 +220,11 @@ void SinclairACCNT::send_packet()
     // attempt even if we are waiting for response. This helps to emit TX
     // frames for debugging or when the AC isn't yet responding. Still respect
     // the refresh period in general to avoid spamming the bus.
+    ESP_LOGD(TAG, "send_packet():wait=%d time=%lu", this->wait_response_,millis()-this->last_packet_sent_);
     if (this->wait_response_ == true || (millis() - this->last_packet_sent_ < protocol::TIME_REFRESH_PERIOD_MS))
     {
         /* do not send packet too often or when we are waiting for report to come */
+        ESP_LOGD(TAG, "send_packet() BLOCKED");
         return;
     }
     
