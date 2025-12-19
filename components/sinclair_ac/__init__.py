@@ -10,7 +10,7 @@ AUTO_LOAD = ["switch", "sensor", "select"]
 DEPENDENCIES = ["uart"]
 
 CODEOWNERS = ["@EsperancaNuevo"]
-VERSION = cg.Version(1, 0, 0)
+#VERSION = cg.Version(1, 0, 0)
 
 sinclair_ac_ns = cg.esphome_ns.namespace("sinclair_ac")
 SinclairAC = sinclair_ac_ns.class_(
@@ -165,3 +165,4 @@ async def to_code(config):
             await cg.register_component(a_switch, conf)
             await switch.register_switch(a_switch, conf)
             cg.add(getattr(var, f"set_{s}")(a_switch))
+
