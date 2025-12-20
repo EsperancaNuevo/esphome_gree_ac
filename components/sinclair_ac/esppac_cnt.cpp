@@ -13,6 +13,13 @@ void SinclairACCNT::setup()
 {
     SinclairAC::setup();
     ESP_LOGD(TAG, "Using serial protocol for Sinclair AC");
+
+    // Отправь тестовый пакет при запуске
+    std::vector test_packet = {0x7E, 0x7E, 0x0D, 0x04, 0x04, 0x00, 0x00, 0x00, 
+                                0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x4D};
+    
+    ESP_LOGD(TAG, "Sending initial test packet");
+    write_array(test_packet);
     
     // Initialize last packet preference
     this->pref_last_packet_ = global_preferences->make_preference<LastPacketPayload>(PREF_KEY_LAST_PACKET);
